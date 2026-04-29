@@ -1,0 +1,62 @@
+using System;
+using System.Buffers;
+using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Nerdbank.Streams;
+
+namespace CodeBrix.Platform.LinuxDBus; //was previously: Tmds.DBus.Protocol;
+/// <summary>Message Buffer.</summary>
+public sealed class MessageBuffer
+{
+    private readonly MessageBufferPool _messagePool;
+
+    private readonly Sequence<byte> _data;
+
+    internal uint Serial { get; private set; }
+
+    internal MessageFlags MessageFlags { get; private set; }
+
+    internal UnixFdCollection Handles { get; private set; }
+
+    internal MessageBuffer(MessageBufferPool messagePool, Sequence<byte> sequence)
+    {
+        _messagePool = messagePool;
+        _data = sequence;
+    }
+
+    internal void Init(uint serial, MessageFlags flags, UnixFdCollection handles)
+    {
+        Serial = serial;
+        MessageFlags = flags;
+        Handles = handles;
+    }
+
+    internal void RefHandles() => Handles?.RefHandles();
+
+    // Users should create a message using a MessageWriter
+    // and then hand it to the Connection class which is responsible for calling this method.
+    // A library user is never considered the owner of this message and therefore
+    // we don't provide a public method for a user to Dispose/ReturnToPool.
+    internal void ReturnToPool()
+    {
+        _data.Reset();
+        Handles?.Dispose();
+        Handles = null;
+        _messagePool.Return(this);
+    }
+
+    // For writing data.
+    internal Sequence<byte> Sequence => _data;
+
+    // For reading data.
+    internal ReadOnlySequence<byte> AsReadOnlySequence() => _data.AsReadOnlySequence;
+}

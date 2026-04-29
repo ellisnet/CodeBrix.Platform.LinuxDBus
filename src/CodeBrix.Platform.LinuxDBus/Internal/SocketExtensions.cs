@@ -1,0 +1,280 @@
+using System.Net.Sockets;
+using System;
+using System.Buffers;
+using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Nerdbank.Streams;
+
+namespace CodeBrix.Platform.LinuxDBus; //was previously: Tmds.DBus.Protocol;
+using SizeT = System.UIntPtr;
+using SSizeT = System.IntPtr;
+
+static class SocketExtensions
+{
+    public static ValueTask<int> ReceiveAsync(this Socket socket, Memory<byte> memory, UnixFdCollection fdCollection)
+    {
+        if (fdCollection is null)
+        {
+            return socket.ReceiveAsync(memory, SocketFlags.None);
+        }
+        else
+        {
+            return socket.ReceiveWithHandlesAsync(memory, fdCollection);
+        }
+    }
+
+    private async static ValueTask<int> ReceiveWithHandlesAsync(this Socket socket, Memory<byte> memory, UnixFdCollection fdCollection)
+    {
+        while (true)
+        {
+            await socket.ReceiveAsync(new Memory<byte>(), SocketFlags.None).ConfigureAwait(false);
+
+            int rv = recvmsg(socket, memory, fdCollection);
+
+            if (rv >= 0)
+            {
+                return rv;
+            }
+            else
+            {
+                int errno = Marshal.GetLastWin32Error();
+                if (errno == EAGAIN || errno == EINTR)
+                {
+                    continue;
+                }
+
+                throw new SocketException(errno);
+            }
+        }
+    }
+
+    public static ValueTask SendAsync(this Socket socket, ReadOnlyMemory<byte> buffer, UnixFdCollection handles)
+    {
+        if (handles is null || handles.Count == 0)
+        {
+            return SendAsync(socket, buffer);
+        }
+        else
+        {
+            return socket.SendAsyncWithHandlesAsync(buffer, handles);
+        }
+    }
+
+    private static async ValueTask SendAsync(this Socket socket, ReadOnlyMemory<byte> buffer)
+    {
+        while (buffer.Length > 0)
+        {
+            int sent = await socket.SendAsync(buffer, SocketFlags.None).ConfigureAwait(false);
+            buffer = buffer.Slice(sent);
+        }
+    }
+
+    private static ValueTask SendAsyncWithHandlesAsync(this Socket socket, ReadOnlyMemory<byte> buffer, UnixFdCollection handles)
+    {
+        socket.Blocking = false;
+        do
+        {
+            int rv = sendmsg(socket, buffer, handles);
+            if (rv > 0)
+            {
+                if (buffer.Length == rv)
+                {
+                    return default;
+                }
+                return SendAsync(socket, buffer.Slice(rv));
+            }
+            else
+            {
+                int errno = Marshal.GetLastWin32Error();
+                if (errno == EINTR)
+                {
+                    continue;
+                }
+                // TODO (low prio): handle EAGAIN.
+                return new ValueTask(Task.FromException(new SocketException(errno)));
+            }
+        } while (true);
+    }
+
+    private static unsafe int sendmsg(Socket socket, ReadOnlyMemory<byte> buffer, UnixFdCollection handles)
+    {
+        lock (handles.SyncObject)
+        {
+            // limit stackalloc
+            if (handles.Count > ProtocolConstants.MaxMessageFileDescriptors)
+            {
+                throw new SocketException((int)SocketError.NoBufferSpaceAvailable);
+            }
+
+            fixed (byte* ptr = buffer.Span)
+            {
+                IOVector* iovs = stackalloc IOVector[1];
+                iovs[0].Base = ptr;
+                iovs[0].Length = (SizeT)buffer.Length;
+
+                Msghdr msg = new Msghdr();
+                msg.msg_iov = iovs;
+                msg.msg_iovlen = (SizeT)1;
+
+                int size = sizeof(Cmsghdr) + sizeof(int) * handles.Count;
+                byte* cmsgBuf = stackalloc byte[size];
+                Cmsghdr* hdr = (Cmsghdr*)cmsgBuf;
+                hdr->cmsg_len = (SizeT)size;
+                hdr->cmsg_level = SOL_SOCKET;
+                hdr->cmsg_type = SCM_RIGHTS;
+                int* fds = (int*)(cmsgBuf + sizeof(Cmsghdr));
+
+                msg.msg_control = cmsgBuf;
+                msg.msg_controllen = (SizeT)size;
+
+                SafeHandle handle = socket.GetSafeHandle();
+                bool refAdded = false;
+                try
+                {
+                    handle.DangerousAddRef(ref refAdded);
+                    for (int i = 0; i < handles.Count; i++)
+                    {
+                        fds[i] = handles.DangerousGetHandle(i);
+                    }
+
+                    return (int)sendmsg(handle.DangerousGetHandle().ToInt32(), new IntPtr(&msg), 0);
+                }
+                finally
+                {
+                    if (refAdded)
+                    {
+                        handle.DangerousRelease();
+                    }
+                }
+            }
+        }
+    }
+
+    private static unsafe int recvmsg(Socket socket, Memory<byte> buffer, UnixFdCollection handles)
+    {
+        fixed (byte* buf = buffer.Span)
+        {
+            IOVector iov = new IOVector();
+            iov.Base = buf;
+            iov.Length = (SizeT)buffer.Length;
+
+            Msghdr msg = new Msghdr();
+            msg.msg_iov = &iov;
+            msg.msg_iovlen = (SizeT)1;
+
+            // The kernel does not coalesce control messages across sendmsg boundaries.
+            // We only need to have room for handles from a single D-Bus message.
+            int maxRecvFds = ProtocolConstants.MaxMessageFileDescriptors - handles.Count;
+            if (maxRecvFds <= 0)
+            {
+                maxRecvFds = 0;
+            }
+            int cmsgSize = sizeof(Cmsghdr) + sizeof(int) * maxRecvFds;
+            byte* cmsgBuf = stackalloc byte[cmsgSize];
+            Cmsghdr* cmsgHdr = (Cmsghdr*)cmsgBuf;
+            msg.msg_control = cmsgBuf;
+            msg.msg_controllen = (SizeT)cmsgSize;
+
+            var handle = socket.GetSafeHandle();
+            bool refAdded = false;
+            try
+            {
+                handle.DangerousAddRef(ref refAdded);
+
+                int rv = (int)recvmsg(handle.DangerousGetHandle().ToInt32(), new IntPtr(&msg), MSG_CMSG_CLOEXEC);
+
+                if (rv >= 0)
+                {
+                    if ((int)msg.msg_controllen > 0 && cmsgHdr->cmsg_level == SOL_SOCKET && cmsgHdr->cmsg_type == SCM_RIGHTS)
+                    {
+                        int msgFdCount = ((int)cmsgHdr->cmsg_len - sizeof(Cmsghdr)) / sizeof(int);
+                        int* fds = (int*)(cmsgBuf + sizeof(Cmsghdr));
+                        for (int i = 0; i < msgFdCount; i++)
+                        {
+                            handles.AddHandle(new IntPtr(fds[i]));
+                        }
+                    }
+
+                    if ((msg.msg_flags & MSG_CTRUNC) != 0)
+                    {
+                        throw new SocketException((int)SocketError.NoBufferSpaceAvailable);
+                    }
+                }
+                return rv;
+            }
+            finally
+            {
+                if (refAdded)
+                {
+                    handle.DangerousRelease();
+                }
+            }
+        }
+    }
+
+    const int SOL_SOCKET = 1;
+    const int EINTR = 4;
+    const int EBADF = 9;
+    const int SCM_RIGHTS = 1;
+
+    static readonly int EAGAIN;
+    static readonly int MSG_CMSG_CLOEXEC;
+    static readonly int MSG_CTRUNC;
+
+    static SocketExtensions()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            EAGAIN = 35;
+            MSG_CMSG_CLOEXEC = 0;
+            MSG_CTRUNC = 0x20;
+        }
+        else
+        {
+            // Linux
+            EAGAIN = 11;
+            MSG_CMSG_CLOEXEC = 0x40000000;
+            MSG_CTRUNC = 8;
+        }
+    }
+
+    private unsafe struct Msghdr
+    {
+        public IntPtr msg_name; //optional address
+        public uint msg_namelen; //size of address
+        public IOVector* msg_iov; //scatter/gather array
+        public SizeT msg_iovlen; //# elements in msg_iov
+        public void* msg_control; //ancillary data, see below
+        public SizeT msg_controllen; //ancillary data buffer len
+        public int msg_flags; //flags on received message
+    }
+
+    private unsafe struct IOVector
+    {
+        public void* Base;
+        public SizeT Length;
+    }
+
+    private struct Cmsghdr
+    {
+        public SizeT cmsg_len; //data byte count, including header
+        public int cmsg_level; //originating protocol
+        public int cmsg_type; //protocol-specific type
+    }
+
+
+    [DllImport("libc", SetLastError = true)]
+    public static extern SSizeT sendmsg(int sockfd, IntPtr msg, int flags);
+
+    [DllImport("libc", SetLastError = true)]
+    public static extern SSizeT recvmsg(int sockfd, IntPtr msg, int flags);
+}

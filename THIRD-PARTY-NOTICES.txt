@@ -1,0 +1,153 @@
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+
+CodeBrix.Platform.LinuxDBus is a low-level D-Bus protocol library for
+Linux, ported from the upstream `Tmds.DBus.Protocol` NuGet package
+(version 0.21.3) to a .NET 10 target and the CodeBrix family's coding
+conventions. Substantially all of the source code (and all of the test
+code) in this repository is derived from that upstream project and is
+redistributed here under its original MIT License.
+
+Jeremy Ellis and contributors license the CodeBrix.Platform.LinuxDBus
+project to you under the terms set forth in the LICENSE file, which is
+located at the root of this repository. The MIT License of the upstream
+Tmds.DBus project and this repository's own MIT License are identical
+in terms; the upstream copyright and permission notice is reproduced
+below in full, as required by that license.
+
+If you have any questions about any third-party code or services
+referenced here, or if you believe that any third-party code has been
+included in CodeBrix.Platform.LinuxDBus in error, please open a new
+issue at:
+https://github.com/ellisnet/CodeBrix.Platform.LinuxDBus/issues
+
+================================================================================
+
+(1) Tmds.DBus.Protocol (and Tmds.DBus.Protocol.Tests)
+
+    Upstream project:  Tmds.DBus
+    Source:            https://github.com/tmds/Tmds.DBus
+    Version / tag:     rel/0.21.3
+    License:           MIT
+    Copyright:         Copyright 2006 Alp Toker <alp@atoker.com>
+                       Copyright 2010 Other Contributors
+                       Copyright 2016 Tom Deseyn <tom.deseyn@gmail.com>
+
+    Security:          This port is taken from the rel/0.21.3 tag,
+                       which includes the fixes for advisory
+                       GHSA-xrw6-gwf8-vvr9 / CVE-2026-39959 (High,
+                       CVSS 7.1). The three fixed attack vectors are:
+                       signal-sender spoofing (malicious peers
+                       impersonating well-known names), Unix file
+                       descriptor resource exhaustion / fd spillover,
+                       and denial-of-service via unhandled exceptions
+                       on the SynchronizationContext inside AddMatch
+                       callbacks.
+
+    Every .cs file in src/CodeBrix.Platform.LinuxDBus/ and in
+    tests/CodeBrix.Platform.LinuxDBus.Tests/ is derived from its
+    counterpart in src/Tmds.DBus.Protocol/ or
+    test/Tmds.DBus.Protocol.Tests/ of the upstream repository at the
+    rel/0.21.3 tag. Each ported file carries a
+    `//was previously: Tmds.DBus.Protocol[.*];` provenance comment on
+    its `namespace` line.
+
+    Modifications made during the port:
+    * Renamed the root namespace from `Tmds.DBus.Protocol` to
+      `CodeBrix.Platform.LinuxDBus` and split the source into sub-
+      namespaces (Messages, Reading, Writing, Types, Exceptions,
+      Enumerations, Internal).
+    * Narrowed the target framework from
+      `netstandard2.0;netstandard2.1;net6.0;net8.0` to `net10.0` only,
+      and stripped every `#if NETSTANDARD2_0 / NETSTANDARD2_1 / NET6_0 /
+      NET7_0 / NETFRAMEWORK` conditional-compile branch that is always
+      false on .NET 10. Live branches were kept verbatim; the removed
+      branches included the entire `Netstandard2_0Extensions.cs`,
+      `Netstandard2_1Extensions.cs`, and the netstandard-only portions
+      of the `Polyfill/` folder.
+    * Deleted `GlobalUsings.cs` and promoted every global `using` to an
+      explicit file-scoped `using` in the files that need it (the
+      CodeBrix family forbids global usings).
+    * Removed `<Nullable>enable</Nullable>` and stripped every `?`
+      annotation on reference types and every null-forgiveness `!`
+      operator (the CodeBrix family has nullable reference types off).
+    * Ported tests from xUnit (v2) to xUnit v3 and replaced
+      `Assert.*(...)` calls with SilverAssertions fluent
+      `.Should()...` calls where practical. Added
+      `TestContext.Current.CancellationToken` on cancellable awaits.
+    * Added XML doc comments on every public and protected member so
+      that `<GenerateDocumentationFile>true</GenerateDocumentationFile>`
+      compiles cleanly (CS1591-free).
+    * Removed the `SignAssembly` / `AssemblyOriginatorKeyFile` /
+      `PublicSign` properties and the embedded `sign.snk` resource;
+      this port is not strong-name signed.
+
+    Upstream license text (reproduced verbatim from the upstream
+    COPYING file):
+
+        Copyright 2006 Alp Toker <alp@atoker.com>
+        Copyright 2010 Other Contributors
+        Copyright 2016 Tom Deseyn <tom.deseyn@gmail.com>
+
+        Permission is hereby granted, free of charge, to any person obtaining
+        a copy of this software and associated documentation files (the
+        "Software"), to deal in the Software without restriction, including
+        without limitation the rights to use, copy, modify, merge, publish,
+        distribute, sublicense, and/or sell copies of the Software, and to
+        permit persons to whom the Software is furnished to do so, subject to
+        the following conditions:
+
+        The above copyright notice and this permission notice shall be
+        included in all copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+        EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+        MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+        IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+        CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+        TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+        SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+================================================================================
+
+(2) Nerdbank.Streams (Sequence<T>)
+
+    Upstream project:  Nerdbank.Streams
+    Source:            https://github.com/AArnott/Nerdbank.Streams
+    License:           MIT
+    Copyright:         Copyright (c) Andrew Arnott. All rights reserved.
+
+    The file `src/CodeBrix.Platform.LinuxDBus/Internal/NerdbankStreamsSequence.cs`
+    contains the `Nerdbank.Streams.Sequence<T>` type, copied verbatim from the
+    upstream Nerdbank.Streams project (via the Tmds.DBus.Protocol polyfill
+    folder). The file's `namespace Nerdbank.Streams` declaration is preserved
+    unchanged; the original header comment at the top of the file preserves
+    Andrew Arnott's copyright attribution. No modifications were made beyond
+    cosmetic tweaks applied by the port pipeline (line endings, trailing
+    whitespace).
+
+    Upstream license text (MIT, same wording as reproduced above):
+
+        Copyright (c) Andrew Arnott. All rights reserved.
+
+        Permission is hereby granted, free of charge, to any person obtaining
+        a copy of this software and associated documentation files (the
+        "Software"), to deal in the Software without restriction, including
+        without limitation the rights to use, copy, modify, merge, publish,
+        distribute, sublicense, and/or sell copies of the Software, and to
+        permit persons to whom the Software is furnished to do so, subject to
+        the following conditions:
+
+        The above copyright notice and this permission notice shall be
+        included in all copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+        EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+        MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+        IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+        CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+        TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+        SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+================================================================================
+
+END OF THIRD-PARTY SOFTWARE NOTICES AND INFORMATION

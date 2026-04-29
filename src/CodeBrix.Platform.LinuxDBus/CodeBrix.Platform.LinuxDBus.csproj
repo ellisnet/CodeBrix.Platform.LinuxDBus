@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>CodeBrix.Platform.LinuxDBus</AssemblyName>
+    <RootNamespace>CodeBrix.Platform.LinuxDBus</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>CodeBrix.Platform.LinuxDBus.MitLicenseForever</PackageId>
+    <Version>1.0.117</Version>
+    <Product>CodeBrix.Platform.LinuxDBus</Product>
+    <Title>CodeBrix.Platform.LinuxDBus</Title>
+    <Authors>Jeremy Ellis</Authors>
+    <Description>A fully managed, .NET 10 drop-in replacement for the Tmds.DBus.Protocol NuGet package. Provides low-level D-Bus protocol primitives for Linux: connect to the session or system bus, send and receive raw D-Bus messages, subscribe to signals, register method handlers, and read or write every D-Bus wire-level type.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/ellisnet/CodeBrix.Platform.LinuxDBus</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ellisnet/CodeBrix.Platform.LinuxDBus</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>icon-codebrix-128.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) 2026 Jeremy Ellis and contributors</Copyright>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <IsPackable>true</IsPackable>
+    <PackageTags>dbus;linux;ipc;freedesktop;session-bus;system-bus;protocol;CodeBrix</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon-codebrix-128.png" Pack="true" PackagePath="" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    <None Include="..\..\AGENT-README.txt" Pack="true" PackagePath="" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
