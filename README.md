@@ -24,24 +24,40 @@ Please update your C#/.NET code and projects to the latest LTS version of Micros
 ### Connecting to the session bus and calling `org.freedesktop.DBus.ListNames`
 
 ```csharp
+using System;
+using System.Threading.Tasks;
 using CodeBrix.Platform.LinuxDBus;
 
-await using var connection = new Connection(Address.Session!);
-await connection.ConnectAsync();
-
-using var message = connection.CreateMessage(
-    destination: "org.freedesktop.DBus",
-    path:        "/org/freedesktop/DBus",
-    @interface:  "org.freedesktop.DBus",
-    member:      "ListNames");
-
-using var reply = await connection.CallMethodAsync(message);
-var reader = reply.GetBodyReader();
-string[] names = reader.ReadArrayOfString();
-
-foreach (var name in names)
+public static class ListNamesExample
 {
-    Console.WriteLine(name);
+    public static async Task RunAsync()
+    {
+        using var connection = new Connection(Address.Session!);
+        await connection.ConnectAsync();
+
+        // The generic overload returns the reply, decoded by the reader you pass in.
+        string[] names = await connection.CallMethodAsync(
+            CreateMessage(connection),
+            (Message message, object state) =>
+                message.GetBodyReader().ReadArrayOfString());
+
+        foreach (string name in names)
+        {
+            Console.WriteLine(name);
+        }
+    }
+
+    // MessageWriter is a ref struct, so build the message in a non-async helper.
+    private static MessageBuffer CreateMessage(Connection connection)
+    {
+        using var writer = connection.GetMessageWriter();
+        writer.WriteMethodCallHeader(
+            destination: Connection.DBusServiceName,
+            path:        Connection.DBusObjectPath,
+            @interface:  Connection.DBusInterface,
+            member:      "ListNames");
+        return writer.CreateMessage();
+    }
 }
 ```
 
