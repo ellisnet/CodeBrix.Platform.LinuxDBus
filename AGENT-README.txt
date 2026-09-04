@@ -20,9 +20,8 @@ targeting .NET 10 or later. It speaks the D-Bus wire protocol directly:
     descriptors;
   - generates D-Bus introspection XML for the object paths you registered.
 
-It is a fully-managed port of the upstream Tmds.DBus.Protocol library
-(version 0.21.3) by Tom Deseyn and contributors, re-targeted to .NET 10 and
-renamed. The public API shape is preserved; only the namespace changes, from
+It is a fully-managed port of the upstream Tmds.DBus.Protocol library by
+Tom Deseyn and contributors, re-targeted to .NET 10 and renamed. The public API shape is preserved; only the namespace changes, from
 `Tmds.DBus.Protocol` to `CodeBrix.Platform.LinuxDBus`. DO NOT write
 `using Tmds.DBus.Protocol;` in code that consumes this package, and do not
 add the upstream package alongside it — the two assemblies define the same

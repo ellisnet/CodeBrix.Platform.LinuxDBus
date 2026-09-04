@@ -29,9 +29,14 @@ wire-level reader/writer primitives.
 REPOSITORY LAYOUT
 =================
 
-    CodeBrix.Platform.LinuxDBus.slnx    solution (Solution Items folder +
-                                        a Tests folder holding the test
-                                        project)
+    CodeBrix.Platform.LinuxDBus.slnx    solution. The Solution Items folder
+                                        carries .gitignore, AGENT-README.txt,
+                                        EXTRAS-README.txt, global.json,
+                                        icon-codebrix-128.png, LICENSE,
+                                        MAINTAINER-README.txt,
+                                        README-INDEX.txt, README.md and
+                                        THIRD-PARTY-NOTICES.txt; the Tests
+                                        folder holds the test project
     src/CodeBrix.Platform.LinuxDBus/    the library and its csproj
     tests/CodeBrix.Platform.LinuxDBus.Tests/
                                         the xUnit v3 test project
@@ -43,6 +48,8 @@ REPOSITORY LAYOUT
     MAINTAINER-README.txt               this file
     EXTRAS-README.txt                   non-package content
     README-INDEX.txt                    map of the README files
+    global.json                         selects the Microsoft.Testing.Platform
+                                        test runner; pins no SDK version
 
 There are no samples, tools or demo applications in this repository.
 
@@ -122,8 +129,20 @@ TESTING
 
     dotnet test CodeBrix.Platform.LinuxDBus.slnx
 
+THE TEST RUNNER IS Microsoft.Testing.Platform, selected by global.json at the
+repository root. That file does NOT pin an SDK version, so the newest
+installed .NET 10 SDK is still used; it exists solely to select the runner:
+
+    { "test": { "runner": "Microsoft.Testing.Platform" } }
+
+Because the setting lives in global.json rather than in the test csproj, it
+applies to every `dotnet test` run anywhere in the repository, including CI.
+Keep the file committed -- without it `dotnet test` silently falls back to the
+older VSTest bridge.
+
 The test project uses xUnit v3 with SilverAssertions, plus
-Microsoft.NET.Test.Sdk, xunit.runner.visualstudio and coverlet.collector.
+Microsoft.NET.Test.Sdk and xunit.runner.visualstudio. There is no coverage
+collector: coverlet.collector was removed from the test project.
 Coverage areas:
 
   - VariantValue construction, typed retrieval and round-trips across every

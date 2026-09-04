@@ -55,7 +55,7 @@
     <Product>CodeBrix.Platform.LinuxDBus</Product>
     <Title>CodeBrix.Platform.LinuxDBus</Title>
     <Authors>Jeremy Ellis</Authors>
-    <Description>A fully managed, .NET 10 drop-in replacement for the Tmds.DBus.Protocol NuGet package. Provides low-level D-Bus protocol primitives for Linux: connect to the session or system bus, send and receive raw D-Bus messages, subscribe to signals, register method handlers, and read or write every D-Bus wire-level type.</Description>
+    <Description>A fully managed, .NET 10 low-level D-Bus protocol library for Linux. Provides the D-Bus protocol primitives: connect to the session or system bus, send and receive raw D-Bus messages, subscribe to signals, register method handlers, and read or write every D-Bus wire-level type.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/ellisnet/CodeBrix.Platform.LinuxDBus</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ellisnet/CodeBrix.Platform.LinuxDBus</RepositoryUrl>
