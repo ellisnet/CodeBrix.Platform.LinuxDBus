@@ -181,7 +181,7 @@ read a reply you must use the generic overload and supply a
 and decodes it. If the peer answers with an error message, the returned Task
 faults with `DBusException` (carrying `ErrorName` and `ErrorMessage`).
 
-Fire-and-forget sending (signals, or calls flagged `NoReplyExpected`):
+One-way sending (signals, or calls flagged `NoReplyExpected`):
 
     public bool TrySendMessage(MessageBuffer message)
 
